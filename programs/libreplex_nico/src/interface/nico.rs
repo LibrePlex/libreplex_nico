@@ -6,7 +6,15 @@ use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 
 pub enum NicoType {
     Nifty,
-    Core,
+    MxCore,
+    // these are the regular mint types and 
+    // can be transferred with the appropriate
+    // version of spl token 
+    Token22,
+    MxFungible,
+    // this one needs a bunch of extra accounts,
+    // transfer handled by mpl_token_metadata
+    MxProgrammableFungible,
 }
 
 pub struct Nico<'f> {
@@ -20,11 +28,19 @@ impl<'f, 'g: 'f> Nico<'f> {
     pub fn from_account_info(account_info: AccountInfo<'f>) -> Nico<'f> {
         let d = account_info.try_borrow_data().unwrap();
 
-        if account_info.owner.eq(&mpl_core::ID) {
+        if account_info.owner.eq(&nifty_asset::ID) {
+            let nifty_asset = Asset::from_bytes(&d).unwrap();
+            Nico {
+                nico_type: NicoType::Nifty,
+                group: nifty_asset.group.to_option(),
+                pubkey: account_info.key(),
+                account_info: account_info.clone(),
+            }
+        } else if account_info.owner.eq(&mpl_core::ID) {
             let core_asset = mpl_core::Asset::try_from(&account_info).unwrap();
             msg!("{:?}", core_asset.base.update_authority);
             Nico {
-                nico_type: NicoType::Core,
+                nico_type: NicoType::MxCore,
                 group: match core_asset.base.update_authority {
                     UpdateAuthority::None => None,
                     UpdateAuthority::Address(_) => None,
@@ -33,11 +49,16 @@ impl<'f, 'g: 'f> Nico<'f> {
                 pubkey: account_info.key(),
                 account_info: account_info.clone(),
             }
-        } else if account_info.owner.eq(&nifty_asset::ID) {
-            let nifty_asset = Asset::from_bytes(&d).unwrap();
+        } else if account_info.owner.eq(&spl_token_2022::ID) {
+            let core_asset = mpl_core::Asset::try_from(&account_info).unwrap();
+            msg!("{:?}", core_asset.base.update_authority);
             Nico {
-                nico_type: NicoType::Nifty,
-                group: nifty_asset.group.to_option(),
+                nico_type: NicoType::MxCore,
+                group: match core_asset.base.update_authority {
+                    UpdateAuthority::None => None,
+                    UpdateAuthority::Address(_) => None,
+                    UpdateAuthority::Collection(x) => Some(x),
+                },
                 pubkey: account_info.key(),
                 account_info: account_info.clone(),
             }

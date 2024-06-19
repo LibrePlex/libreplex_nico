@@ -2,13 +2,9 @@ use nifty_asset::{
     instructions::TransferCpi as NiftyTransferCpi, types::Standard as NiftyStandard,
 };
 use nifty_asset_types::state::Asset;
-use solana_program::{
-    account_info::AccountInfo,
-    entrypoint::ProgramResult
-};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult};
 
-
-use crate::{assertions::assert_same_pubkeys, Error, NicoTransferParams};
+use crate::{assertions::assert_same_pubkeys, find_in_remaining_accounts, Error, NicoTransferParams};
 
 pub struct TransferNiftyParams<'a, 'b> {
     pub nifty_program_info: &'a AccountInfo<'a>,
@@ -19,13 +15,18 @@ pub struct TransferNiftyParams<'a, 'b> {
     pub signer_seeds: &'b [&'b [&'b [u8]]],
 }
 
-impl <'a,'b> TransferNiftyParams<'a,'b> {
-    pub fn from_nico_transfer_params (params: &NicoTransferParams<'a,'b>) -> TransferNiftyParams<'a,'b> {
+impl<'a, 'b> TransferNiftyParams<'a, 'b> {
+    pub fn from_nico_transfer_params(
+        params: &NicoTransferParams<'a, 'b>,
+        remaining_accounts: &'a [AccountInfo<'a>],
+    ) -> TransferNiftyParams<'a, 'b> {
+        let nifty_program_info =
+            find_in_remaining_accounts(&nifty_asset::ID, remaining_accounts, "nifty_asset");
         TransferNiftyParams {
-            nifty_program_info: params.asset_owner_program,
+            nifty_program_info,
             signer_info: match params.authority_info {
                 Some(x) => x,
-                _ => params.payer_info
+                _ => params.payer_info,
             },
             asset_info: params.asset_info,
             recipient_info: params.recipient_info,

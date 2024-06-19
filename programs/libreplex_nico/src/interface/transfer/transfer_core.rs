@@ -22,8 +22,11 @@ impl<'a, 'b> TransferCoreParams<'a, 'b> {
         let system_program_info =
             find_in_remaining_accounts(&system_program::ID, remaining_accounts, "system_program");
 
+        let mpl_core_program_info =
+            find_in_remaining_accounts(&mpl_core::ID, remaining_accounts, "nifty_asset");
+      
         TransferCoreParams {
-            mpl_core_program_info: params.asset_owner_program,
+            mpl_core_program_info,
             authority_info: params.authority_info,
             asset_info: params.asset_info,
             new_owner_info: params.recipient_info,
