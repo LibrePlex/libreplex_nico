@@ -16,7 +16,7 @@ use crate::{
     NicoTransferParams,
 };
 
-pub const AUTH_RULES: &str = "AdH2Utn6Fus15ZhtenW4hZBQnvtLgM1YCW2MfVp7pYS5";
+pub const AUTH_RULES: &str = "auth9SigNpDKz4sJJ1DfCTuZrZNSAgh9sFD3rboVmgg";
 
 pub struct TransferPnftParams<'a, 'b> {
     pub mpl_token_program_info: &'a AccountInfo<'a>,
@@ -59,7 +59,7 @@ impl<'a, 'b, 'c> TransferPnftParams<'a, 'b> {
         let mpl_token_program_info = find_account_or_panic(
             &mpl_token_metadata::ID,
             remaining_accounts,
-            "mpl_core_program",
+            "mpl_token_metadata",
         );
 
         let token_program = find_account_or_panic(
@@ -232,6 +232,7 @@ pub fn check_and_transfer_pnft(params: TransferPnftParams<'_, '_>) -> ProgramRes
 
     // Drop the data reference before the CPI.
     drop(data);
+
     TransferV1Cpi {
         __program: mpl_token_program_info,
         token: source_token_account_info,
