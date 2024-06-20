@@ -1,7 +1,7 @@
 use mpl_core::instructions::{TransferV1Cpi as MplCoreTransferCpi, TransferV1InstructionArgs};
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, system_program};
 
-use crate::{assertions::assert_same_pubkeys, find_in_remaining_accounts, NicoTransferParams};
+use crate::{assertions::assert_same_pubkeys, find_account_or_panic, find_in_remaining_accounts, NicoTransferParams};
 pub struct TransferCoreParams<'a, 'b> {
     pub mpl_core_program_info: &'a AccountInfo<'a>,
     pub authority_info: Option<&'a AccountInfo<'a>>,
@@ -11,19 +11,20 @@ pub struct TransferCoreParams<'a, 'b> {
     pub system_program_info: &'a AccountInfo<'a>,
     pub collection_asset_opt_info: Option<&'a AccountInfo<'a>>,
     pub signer_seeds: &'b [&'b [&'b [u8]]],
+    pub remaining_accounts: &'a[AccountInfo<'a>]
 }
 
-impl<'a, 'b> TransferCoreParams<'a, 'b> {
+impl<'a, 'b, 'c> TransferCoreParams<'a, 'b> {
     pub fn from_nico_transfer_params(
         params: &NicoTransferParams<'a, 'b>,
         remaining_accounts: &'a [AccountInfo<'a>],
     ) -> TransferCoreParams<'a, 'b> {
         // need to derive extra system account
         let system_program_info =
-            find_in_remaining_accounts(&system_program::ID, remaining_accounts, "system_program");
+        find_account_or_panic(&system_program::ID, remaining_accounts, "system_program");
 
         let mpl_core_program_info =
-            find_in_remaining_accounts(&mpl_core::ID, remaining_accounts, "nifty_asset");
+        find_account_or_panic(&mpl_core::ID, remaining_accounts, "mpl_core_program");
       
         TransferCoreParams {
             mpl_core_program_info,
@@ -34,6 +35,7 @@ impl<'a, 'b> TransferCoreParams<'a, 'b> {
             signer_seeds: params.signer_seeds,
             payer_info: params.payer_info,
             system_program_info,
+            remaining_accounts
         }
     }
 }
@@ -48,6 +50,7 @@ pub fn check_and_transfer_core(params: TransferCoreParams<'_, '_>) -> ProgramRes
         collection_asset_opt_info,
         signer_seeds,
         system_program_info,
+        remaining_accounts
     } = params;
 
     // The incoming asset program is actually the Nifty program.

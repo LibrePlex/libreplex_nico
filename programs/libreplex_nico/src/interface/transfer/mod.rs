@@ -1,11 +1,13 @@
 pub mod transfer_core;
 pub mod transfer_nifty;
+pub mod transfer_pnft;
 
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult};
 use transfer_core::{check_and_transfer_core, TransferCoreParams};
 use transfer_nifty::{check_and_transfer_nifty, TransferNiftyParams};
+use transfer_pnft::{check_and_transfer_pnft, TransferPnftParams};
 
-use crate::{find_in_remaining_accounts, Nico, NicoType};
+use crate::{find_account_or_panic, Nico, NicoType};
 
 pub struct NicoTransferParams<'a, 'b> {
     pub authority_info: Option<&'a AccountInfo<'a>>,
@@ -16,9 +18,9 @@ pub struct NicoTransferParams<'a, 'b> {
     pub signer_seeds: &'b [&'b [&'b [u8]]],
 }
 
-impl<'a, 'b> NicoTransferParams<'a, 'b> {
+impl<'a: 'c, 'b, 'c> NicoTransferParams<'a, 'b> {
     pub fn new(
-        nico: &'a Nico<'a>,
+        nico: &'c Nico<'a>,
         payer_info: &'a AccountInfo<'a>,
         recipient_info: &'a AccountInfo<'a>,
         authority_info: Option<&'a AccountInfo<'a>>,
@@ -27,7 +29,7 @@ impl<'a, 'b> NicoTransferParams<'a, 'b> {
     ) -> NicoTransferParams<'a, 'b> {
         let group_asset_opt_info = nico
             .group
-            .map(|x| find_in_remaining_accounts(&x, remaining_accounts, "group"));
+            .map(|x| find_account_or_panic(&x, remaining_accounts, "group"));
 
         NicoTransferParams {
             asset_info: &nico.account_info,
@@ -40,9 +42,9 @@ impl<'a, 'b> NicoTransferParams<'a, 'b> {
     }
 }
 
-impl<'a, 'b> Nico<'a> {
+impl<'a: 'c, 'b, 'c> Nico<'a> {
     pub fn transfer(
-        &'a self,
+        &'c self,
         payer: &'a AccountInfo<'a>,
         target_wallet: &'a AccountInfo<'a>,
         authority: Option<&'a AccountInfo<'a>>,
@@ -57,7 +59,8 @@ impl<'a, 'b> Nico<'a> {
             signer_seeds,
             remaining_accounts,
         );
-        match self.nico_type {
+
+        match &self.nico_type {
             NicoType::Nifty => {
                 let nifty_params =
                     TransferNiftyParams::from_nico_transfer_params(&params, remaining_accounts);
@@ -67,10 +70,29 @@ impl<'a, 'b> Nico<'a> {
                 let core_params =
                     TransferCoreParams::from_nico_transfer_params(&params, remaining_accounts);
                 check_and_transfer_core(core_params)
-            },
-            _=> {
-                panic!("Nico type not supported yet");
             }
+            NicoType::Mint {
+                metadata,
+                current_owner,
+                current_token_account,
+            } => match &metadata {
+                crate::MetadataType::Unknown => todo!(),
+                crate::MetadataType::Token22Extension => {
+                    panic!("Nico type MxNonProgrammable not supported yet");
+                }
+                crate::MetadataType::MxNonProgrammable => {
+                    panic!("Nico type MxNonProgrammable not supported yet");
+                }
+                crate::MetadataType::Mxprogrammable => {
+                    let programmable_mx_params = TransferPnftParams::from_nico_transfer_params(
+                        current_owner.unwrap_or_else(||panic!("This Nico was constructed without current owner. Cannot transfer")),
+                        current_token_account.unwrap_or_else(||panic!("This Nico was constructed without current token account. Cannot transfer")),
+                        &params,
+                        remaining_accounts,
+                    );
+                    check_and_transfer_pnft(programmable_mx_params)
+                }
+            },
         }
     }
 }
