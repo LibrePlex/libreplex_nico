@@ -12,10 +12,9 @@ pub fn find_account<'a>(
 
 pub fn find_account_data<'a>(
     account_id: &Pubkey,
-    account_datas: &'a [AccountData<'a>],
-    name: &str
+    account_datas: Vec<&'a AccountData<'a>>
 ) -> Option<&'a AccountData<'a>> {
-    account_datas.iter().find(|x| x.pubkey.eq(account_id))
+    account_datas.into_iter().find(|x| x.pubkey.eq(account_id))
 }
 
 pub fn find_account_or_panic<'a>(

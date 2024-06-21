@@ -1,4 +1,5 @@
 use anchor_lang::Key;
+use mpl_core::accounts::BaseAssetV1;
 use mpl_core::asset;
 use mpl_core::types::UpdateAuthority;
 use mpl_token_metadata::accounts::Metadata;
@@ -47,28 +48,28 @@ impl<'f> Nico<'f> {
 
 
     pub fn from_raw_data(
-        pubkey: Pubkey,
-        asset_owner_program: Pubkey,
-        data: &[u8],
+        asset_info: &'f AccountInfo<'f>,
+        metadata_data: Option<&'f AccountInfo<'f>>,
         current_owner: Option<&'f AccountInfo<'f>>,
-        current_token_account: Option<&'f AccountInfo<'f>>,
-        account_datas: &'f [AccountData<'f>],
+        current_token_account: Option<&'f AccountInfo<'f>>
     ) -> Nico<'f> {
         
+        let asset_owner_program = asset_info.owner;
+        let pubkey = asset_info.key();
         if asset_owner_program.eq(&nifty_asset::ID) {
-            let nifty_asset = Asset::from_bytes(&data).unwrap();
+            let nifty_asset = Asset::try_from(asset_info).unwrap();
             Nico {
                 nico_type: NicoType::Nifty,
                 group: nifty_asset.group.to_option(),
                 pubkey,
-                owner_program: asset_owner_program
+                owner_program: *asset_owner_program
             }
         } else if asset_owner_program.eq(&mpl_core::ID) {
-            let core_asset = mpl_core::Asset::from_bytes(&data).unwrap();
-            msg!("{:?}", core_asset.base.update_authority);
+            let core_asset = BaseAssetV1::try_from(asset_info).unwrap();
+            msg!("{:?}", core_asset.update_authority);
             Nico {
                 nico_type: NicoType::MxCore,
-                group: match core_asset.base.update_authority {
+                group: match core_asset.update_authority {
                     UpdateAuthority::None => None,
                     UpdateAuthority::Address(_) => None,
                     UpdateAuthority::Collection(x) => Some(x),
@@ -79,25 +80,10 @@ impl<'f> Nico<'f> {
         } else if asset_owner_program.eq(&spl_token_2022::ID)
             || asset_owner_program.eq(&spl_token::ID)
         {
-            // let's see if metadata exists
-
-            let metadata_pubkey = Pubkey::find_program_address(
-                &[
-                    "metadata".as_bytes(),
-                    &mpl_token_metadata::ID.as_ref(),
-                    pubkey.as_ref(),
-                ],
-                &mpl_token_metadata::ID,
-            )
-            .0;
-
-            let metadata_account_info_option =
-                find_account_data(&metadata_pubkey, account_datas, "mx_metadata");
-
-            if let Some(metadata_account_info) = metadata_account_info_option {
+            if let Some(md) = metadata_data {
                 // ok we have a metadata account in the context.
                 // try and deserialize
-                let metadata_obj = Metadata::safe_deserialize(metadata_account_info.data).ok();
+                let metadata_obj = Metadata::safe_deserialize(&(*md.data).borrow()).ok();
                 if let Some(m) = metadata_obj {
                     return Nico {
                         nico_type: match m.token_standard {
@@ -131,7 +117,7 @@ impl<'f> Nico<'f> {
                             }
                             None => None,
                         },
-                        owner_program: asset_owner_program
+                        owner_program: *asset_owner_program
                     };
                 };
             }
@@ -141,98 +127,4 @@ impl<'f> Nico<'f> {
         }
     }
 
-    pub fn from_account_info(
-        asset_account_info: &'f AccountInfo<'f>,
-        current_owner: Option<&'f AccountInfo<'f>>,
-        current_token_account: Option<&'f AccountInfo<'f>>,
-        remaining_accounts: &'f [AccountInfo<'f>],
-    ) -> Nico<'f> {
-        let d: &[u8] = &(*asset_account_info.data).borrow();
-        
-        if asset_account_info.owner.eq(&nifty_asset::ID) {
-            let nifty_asset = Asset::from_bytes(&d).unwrap();
-            Nico {
-                nico_type: NicoType::Nifty,
-                group: nifty_asset.group.to_option(),
-                pubkey: *asset_account_info.key,
-                owner_program: *asset_account_info.owner
-            }
-        } else if asset_account_info.owner.eq(&mpl_core::ID) {
-            let core_asset = mpl_core::Asset::try_from(asset_account_info).unwrap();
-            msg!("{:?}", core_asset.base.update_authority);
-            Nico {
-                nico_type: NicoType::MxCore,
-                group: match core_asset.base.update_authority {
-                    UpdateAuthority::None => None,
-                    UpdateAuthority::Address(_) => None,
-                    UpdateAuthority::Collection(x) => Some(x),
-                },
-                pubkey: *asset_account_info.key,
-                owner_program: *asset_account_info.owner
-            }
-        } else if asset_account_info.owner.eq(&spl_token_2022::ID)
-            || asset_account_info.owner.eq(&spl_token::ID)
-        {
-            // let's see if metadata exists
-
-            let metadata_pubkey = Pubkey::find_program_address(
-                &[
-                    "metadata".as_bytes(),
-                    &mpl_token_metadata::ID.as_ref(),
-                    asset_account_info.key.as_ref(),
-                ],
-                &mpl_token_metadata::ID,
-            )
-            .0;
-
-            let metadata_account_info_option =
-                find_account(&metadata_pubkey, remaining_accounts, "mx_metadata");
-
-            if let Some(metadata_account_info) = metadata_account_info_option {
-                // ok we have a metadata account in the context.
-                // try and deserialize
-                let mut data: &[u8] = &metadata_account_info.try_borrow_data().unwrap()[..];
-                let metadata_obj = Metadata::safe_deserialize(&mut data).ok();
-                if let Some(m) = metadata_obj {
-                    return Nico {
-                        nico_type: match m.token_standard {
-                            Some(TokenStandard::ProgrammableNonFungible) => NicoType::Mint {
-                                metadata: MetadataType::Mxprogrammable,
-                                current_owner,
-                                current_token_account,
-                            },
-                            Some(TokenStandard::NonFungible) => NicoType::Mint {
-                                metadata: MetadataType::MxNonProgrammable,
-                                current_owner,
-                                current_token_account,
-                            },
-                            None => NicoType::Mint {
-                                metadata: MetadataType::Unknown,
-                                current_owner,
-                                current_token_account,
-                            },
-                            _ => {
-                                panic!("Unsupported Mx token standard");
-                            },
-                        },
-                        pubkey: asset_account_info.key(),
-                        group: match m.collection {
-                            Some(x) => {
-                                if x.verified {
-                                    Some(x.key)
-                                } else {
-                                    None
-                                }
-                            }
-                            None => None,
-                        },
-                        owner_program: *asset_account_info.owner
-                    };
-                };
-            }
-            panic!("No metadata account provided in remaining accounts");
-        } else {
-            panic!("Unexpected account owner")
-        }
-    }
 }

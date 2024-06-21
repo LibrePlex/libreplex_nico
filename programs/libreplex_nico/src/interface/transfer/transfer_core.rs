@@ -11,7 +11,6 @@ pub struct TransferCoreParams<'a, 'b> {
     pub system_program_info: &'a AccountInfo<'a>,
     pub collection_asset_opt_info: Option<&'a AccountInfo<'a>>,
     pub signer_seeds: &'b [&'b [&'b [u8]]],
-    pub remaining_accounts: &'a[AccountInfo<'a>]
 }
 
 impl<'a, 'b, 'c> TransferCoreParams<'a, 'b> {
@@ -36,7 +35,6 @@ impl<'a, 'b, 'c> TransferCoreParams<'a, 'b> {
             signer_seeds: params.signer_seeds,
             payer_info: params.payer_info,
             system_program_info,
-            remaining_accounts
         }
     }
 }
@@ -51,7 +49,6 @@ pub fn check_and_transfer_core(params: TransferCoreParams<'_, '_>) -> ProgramRes
         collection_asset_opt_info,
         signer_seeds,
         system_program_info,
-        remaining_accounts
     } = params;
 
     // The incoming asset program is actually the Nifty program.
@@ -68,6 +65,7 @@ pub fn check_and_transfer_core(params: TransferCoreParams<'_, '_>) -> ProgramRes
     // Drop the data reference before the CPI.
     drop(data);
 
+    println!("transfer core");
     MplCoreTransferCpi {
         __program: mpl_core_program_info,
         asset: asset_info,

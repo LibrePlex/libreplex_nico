@@ -234,6 +234,12 @@ pub fn check_and_transfer_pnft(params: TransferPnftParams<'_, '_>) -> ProgramRes
     // Drop the data reference before the CPI.
     drop(data);
 
+
+    let metadata_ref = metadata.try_borrow_data().unwrap();
+
+    // Drop the data reference before the CPI.
+    drop(metadata_ref);
+
     TransferV1Cpi {
         __program: mpl_token_program_info,
         token: source_token_account_info,
