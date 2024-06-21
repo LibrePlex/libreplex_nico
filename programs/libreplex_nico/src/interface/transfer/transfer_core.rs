@@ -16,6 +16,7 @@ pub struct TransferCoreParams<'a, 'b> {
 
 impl<'a, 'b, 'c> TransferCoreParams<'a, 'b> {
     pub fn from_nico_transfer_params(
+        asset_info: &'a AccountInfo<'a>,
         params: &NicoTransferParams<'a, 'b>,
         remaining_accounts: &'a [AccountInfo<'a>],
     ) -> TransferCoreParams<'a, 'b> {
@@ -29,7 +30,7 @@ impl<'a, 'b, 'c> TransferCoreParams<'a, 'b> {
         TransferCoreParams {
             mpl_core_program_info,
             authority_info: params.authority_info,
-            asset_info: params.asset_info,
+            asset_info,
             new_owner_info: params.recipient_info,
             collection_asset_opt_info: params.group_asset_opt_info,
             signer_seeds: params.signer_seeds,

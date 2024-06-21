@@ -20,6 +20,7 @@ pub struct TransferNiftyParams<'a, 'b> {
 
 impl<'a, 'b, 'c> TransferNiftyParams<'a, 'b> {
     pub fn from_nico_transfer_params(
+        asset_info: &'a AccountInfo<'a>,
         params: &NicoTransferParams<'a, 'b>,
         remaining_accounts: &'a [AccountInfo<'a>],
     ) -> TransferNiftyParams<'a, 'b> {
@@ -31,7 +32,7 @@ impl<'a, 'b, 'c> TransferNiftyParams<'a, 'b> {
                 Some(x) => x,
                 _ => params.payer_info,
             },
-            asset_info: params.asset_info,
+            asset_info,
             recipient_info: params.recipient_info,
             group_asset_opt_info: params.group_asset_opt_info,
             signer_seeds: params.signer_seeds,

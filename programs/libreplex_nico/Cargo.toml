@@ -1,6 +1,6 @@
 [package]
 name = "libreplex_nico"
-version = "0.0.0"
+version = "0.1.0"
 description = "Created with Anchor"
 edition = "2021"
 license = "MIT"
@@ -45,4 +45,3 @@ mpl-token-metadata = "~3"
 solana-program-test = {version= "~1.17"}
 solana-sdk= "~1.17"
 spl-associated-token-account = "~2"
-

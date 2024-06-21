@@ -43,6 +43,7 @@ pub struct TransferPnftParams<'a, 'b> {
 
 impl<'a, 'b, 'c> TransferPnftParams<'a, 'b> {
     pub fn from_nico_transfer_params(
+        nico_asset_info: &'a AccountInfo<'a>,
         current_owner: &'a AccountInfo<'a>,
         current_token_account: &'a AccountInfo<'a>,
         params: &NicoTransferParams<'a, 'b>,
@@ -63,7 +64,7 @@ impl<'a, 'b, 'c> TransferPnftParams<'a, 'b> {
         );
 
         let token_program = find_account_or_panic(
-            &params.asset_info.owner,
+            &params.nico_owner_program,
             remaining_accounts,
             "token_program",
         );
@@ -83,7 +84,7 @@ impl<'a, 'b, 'c> TransferPnftParams<'a, 'b> {
                 &[
                     "metadata".as_bytes(),
                     &mpl_token_metadata::ID.as_ref(),
-                    params.asset_info.key.as_ref(),
+                    params.nico_pubkey.as_ref(),
                 ],
                 &mpl_token_metadata::ID,
             )
@@ -117,8 +118,8 @@ impl<'a, 'b, 'c> TransferPnftParams<'a, 'b> {
         let target_token_account_info = find_account_or_panic(
             &get_associated_token_address_with_program_id(
                 &params.recipient_info.key,
-                &params.asset_info.key,
-                &params.asset_info.owner,
+                &params.nico_pubkey,
+                &params.nico_owner_program,
             ),
             remaining_accounts,
             "target_ata",
@@ -129,7 +130,7 @@ impl<'a, 'b, 'c> TransferPnftParams<'a, 'b> {
                 &[
                     b"metadata",
                     mpl_token_metadata::ID.as_ref(),
-                    params.asset_info.key.as_ref(),
+                    params.nico_pubkey.as_ref(),
                     b"token_record",
                     current_token_account.key.as_ref(),
                 ],
@@ -145,7 +146,7 @@ impl<'a, 'b, 'c> TransferPnftParams<'a, 'b> {
                 &[
                     b"metadata",
                     mpl_token_metadata::ID.as_ref(),
-                    params.asset_info.key.as_ref(),
+                    params.nico_pubkey.as_ref(),
                     b"token_record",
                     target_token_account_info.key.as_ref(),
                 ],
@@ -161,7 +162,7 @@ impl<'a, 'b, 'c> TransferPnftParams<'a, 'b> {
                 &[
                     "metadata".as_bytes(),
                     &mpl_token_metadata::ID.as_ref(),
-                    params.asset_info.key.as_ref(),
+                    params.nico_pubkey.as_ref(),
                     "edition".as_bytes(),
                 ],
                 &mpl_token_metadata::ID,
@@ -174,7 +175,7 @@ impl<'a, 'b, 'c> TransferPnftParams<'a, 'b> {
         TransferPnftParams {
             mpl_token_program_info,
             authority_info: params.authority_info,
-            asset_info: params.asset_info,
+            asset_info: nico_asset_info,
             new_owner_info: params.recipient_info,
             // collection_asset_opt_info: params.group_asset_opt_info,
             signer_seeds: params.signer_seeds,
